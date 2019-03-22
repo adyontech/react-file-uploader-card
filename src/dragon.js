@@ -1,22 +1,24 @@
-import React, {useState, useEffect} from "react";
+import React, {useState, useRef} from "react";
 import './dragon.css'
+
 function Dragon(props) {
-  let fileUploaderInput = null;
-  const {maxFileUploads = 5,
+  const {
          maxFileSize = 1000000,
+         onFileRemoved,
          onFileupload,
          allowUpload = true,
          cardText = 'Drag and drop',
          buttonInfo = 'Upload here',
-         allowedFileType = []
+         allowedFileType = [],
         } = props
 
   const [isUploadAllowed] = useState(allowUpload != null ? allowUpload : true);
-  const [currentFile, updateCurrentFile] = useState(null);
   const [isDragging, updateIsDragging] = useState(false);
   const [dragEventCounter, updateDragEventCounter] = useState(0);
-  const [currentFiles, updateCurrentFiles] = useState([]);
-  // const fileUploaderRef = useRef(initialValue)
+  const [currentFile, updateCurrentFile] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('')
+  const [fileUploaded, setFileUploaded] = useState(false)
+  const fileInputRef = useRef(null);
 
   const dragenterListener = event => {
     overrideEventDefaults(event);
@@ -26,9 +28,7 @@ function Dragon(props) {
     } else if (
       event.dataTransfer.types &&
       event.dataTransfer.types[0] === 'Files'
-    ) {
-      // This block handles support for IE - if you're not worried about
-      // that, you can omit this
+    ) { // for IE browser
       updateIsDragging(true);
     }
   };
@@ -44,59 +44,93 @@ function Dragon(props) {
   };
 
   const dropListener = event => {
-    overrideEventDefaults(event);
+    overrideEventDefaults(event)
     updateDragEventCounter(0)
-    updateIsDragging(false);
+    updateIsDragging(false)
+    setErrorMessage('')
     if(!isUploadAllowed) return
-    if (event.dataTransfer.files) {
-      console.log(event.dataTransfer.files)
-      const ArrayLength = event.dataTransfer.files.length;
-      if (ArrayLength + currentFiles.length > maxFileUploads) {
-        // display error message.
+    let file = event.dataTransfer.files[0];
+
+    if (file) {
+      if (currentFile !== null)  {
+        setErrorMessage(`only 1 file allowed.`)
         return
-      };
-      for (let index = 0; index < ArrayLength; index++) {
-        let file = event.dataTransfer.files[index];
-        if (file && file.size < maxFileSize && allowedFileType.includes(event.dataTransfer.files[0].type)) {
-          updateCurrentFiles(prevState => [...prevState, file]);
+      }
+      if (file.size < maxFileSize) {
+        if(allowedFileType.length === 0 || allowedFileType.includes(event.dataTransfer.files[0].type)){
+          updateCurrentFile(prev=> {
+            convetToImage(file)
+            setFileUploaded(true)
+            onFileupload(file)
+            return file
+          });
+        }else {
+          setErrorMessage(`File type not allowed`)
         }
+      } else {
+        setErrorMessage(`File should be below ${maxFileSize} kb.`)
       }
     }
   };
 
   const overrideEventDefaults = event => {
     event.preventDefault();
-    event.stopPropagation();
   };
 
   const onSelectFileClick = () => {
-    fileUploaderInput && fileUploaderInput.click();
+    fileInputRef && fileInputRef.current.click();
   };
 
   const onFileChanged = event => {
-    if (event.target.files) {
-      const ArrayLength = event.target.files.length;
-      if (ArrayLength + currentFiles.length > maxFileUploads)  {
-        // display error message.
+    setErrorMessage('')
+    if (event.target.files[0]) {
+      if (currentFile !== null)  {
+        setErrorMessage(`only 1 file allowed.`)
         return
       }
-      for (let index = 0; index < ArrayLength; index++) {
-        let file = event.target.files[index];
-        if (file && file.size < maxFileSize) {
-          updateCurrentFiles(prevState => [...prevState, file]);
-        }
+      let file = event.target.files[0];
+      if (file && file.size < maxFileSize) {
+        updateCurrentFile(prev=> {
+          convetToImage(file)
+          setFileUploaded(true)
+          onFileupload(file)
+          return file
+        });
+      } else {
+        setErrorMessage(`File should be below ${maxFileSize} kb.`)
+        return
       }
     }
-    //   props.onFileupload(event.target.files[0])
   };
 
-  const onRemoveElem = index => {
-    updateCurrentFile(null);
+  const removeFile = () =>{
+    onFileRemoved()
+    setFileUploaded(false)
+    updateCurrentFile(null)
+  }
+
+  const convetToImage = () => {
+    if(currentFile !== null && /^image\//.test((currentFile.type))){
+      return URL.createObjectURL(currentFile);
+    }
+    return false
   };
 
-  return <div className="containerStyle"
+  return (<>
+  {fileUploaded ?
+  <div className="containerStyle" style={{position:'relative'}}>
+    <div onClick={()=> removeFile()} style={{position:'absolute', top:'-15px', right:'-6px', fontSize:'25px'}}>X</div>
+      {convetToImage() ?
+      <img src={convetToImage()} style={{height:'100px', width:'100px'}}/>
+      :
+      <div>File Icon</div>
+      }
+     <p>{currentFile.name}</p>
+  </div>
+  :
+  <div className="containerStyle"
   style={isDragging ? {backgroundColor:'pink'}:null}
-    onDrag={overrideEventDefaults}
+            onDrag={overrideEventDefaults}
             onDragStart={overrideEventDefaults}
             onDragEnd={overrideEventDefaults}
             onDragOver={overrideEventDefaults}
@@ -112,21 +146,22 @@ function Dragon(props) {
       :
       <p>uploading...</p>
     }
-    {(currentFile === null) ?
-    <div className="ButtonStyle" style={!isUploadAllowed ? {backgroundColor:'#D3D3D3'}:null} onClick={onSelectFileClick}>{buttonInfo}</div>
-    :
-    <div className="ButtonStyle" onClick={onRemoveElem}>Remove item</div>
-    }
+
+    <p style={{color:'red'}}>{errorMessage}</p>
+
+    <div className="ButtonStyle" style={!isUploadAllowed ? {backgroundColor:'#D3D3D3'}:null} onClick={onSelectFileClick} >
+      {buttonInfo}
+    </div>
     <input  style={{display:'none'}}
             disabled={!isUploadAllowed}
-            ref={el => (fileUploaderInput = el)}
+            ref={fileInputRef}
             type="file"
-            multiple
             className="file-uploader__input"
             onChange={onFileChanged}
             accept={allowedFileType}
           />
-
-  </div>;
+  </div>
+}
+  </>);
 }
 export default Dragon;

@@ -1,18 +1,16 @@
-import React from "react";
+import React, {useState} from "react";
 import ReactDOM from "react-dom";
 import Dragon  from "./dragon";
 import "./styles.css";
 
 function App() {
-  const allowedFileType = ['image/png', 'application/pdf']
-  // const maxFileUploads = 5
-  let allowUpload = true
-  // const textStyle = {fontSize: '15px', color: 'red', }
-  // const ButtonStyle = {fontSize: '15px', color: 'white', }
-  // const containerStyle = {fontSize: '15px', color: 'red', border:'1px solid pink'}
+  const allowedFileType = []
+  let allowUpload = true;
 
   function onFileupload(arg){
     console.log(arg)
+  }
+  function onFileRemoved(arg){
   }
 
   return (
@@ -20,12 +18,11 @@ function App() {
       <div
         style={{ backgroundColor: "green", height: "250px", width: "250px" }}
       >
-        <Dragon onFileupload={onFileupload} allowedFileType={allowedFileType} allowUpload={allowUpload}/>
+        <Dragon onFileupload={onFileupload} allowedFileType={allowedFileType} allowUpload={allowUpload} onFileRemoved={onFileRemoved}/>
       </div>
     </div>
   );
 }
-// textStyle={textStyle}
-// ButtonStyle={ButtonStyle} containerStyle={containerStyle}
+
 const rootElement = document.getElementById("root");
 ReactDOM.render(<App />, rootElement);
